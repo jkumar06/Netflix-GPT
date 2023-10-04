@@ -1,12 +1,21 @@
 import React,{useState,useRef} from 'react';
 import Header from './Header';
 import { checkValidData } from '../utils/validation';
+import { createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    updateProfile } from "firebase/auth";
+import {auth} from '../../src/utils/firebase';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { addUser } from '../utils/userSlice';
 
 const Login = () => {
     const [isSignInForm,setIsSignInForm] = useState(true);
     const [errorMessage,setErrorMessage] = useState(null);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
   
-    //const name = useRef(null);
+    const name = useRef(null);
     const email = useRef(null);
     const password = useRef(null);
    
@@ -16,12 +25,69 @@ const Login = () => {
     };
 
     const handleButtonClick = () => {
-       //const message = checkValidData(email.current.value,password.current.value,name.current.value)
-       //
        const message = checkValidData(email.current.value,password.current.value)
        setErrorMessage(message);
-        console.log(message)
-       //Sign / Sign Up
+
+       if(message) return;
+
+       //SignIn SignUp Logic
+       if(!isSignInForm) {
+        createUserWithEmailAndPassword(
+            auth, 
+            email.current.value, 
+            password.current.value
+         )
+         .then((userCredential) => {
+            const user = userCredential.user;
+            updateProfile(user, {
+                displayName: name.current.value, 
+                photoURL: "https://www.drawingtutorials101.com/drawing-tutorials/Cartoon-TV/Kick-Buttowski/gunther-magnuson/how-to-draw-Gunther-Magnuson-from-Kick-Buttowski-step-0.png"
+              })
+              .then(() => {
+                const {uid,email,displayName,photoURL} = auth.currentUser;
+                dispatch(
+                        addUser({
+                            uid:uid,
+                            email:email,
+                            displayName:displayName,
+                            photoURL:photoURL
+                    })
+                    );
+                navigate('/browse');
+              })
+              .catch((error) => {
+                setErrorMessage(error.message)
+              });
+            console.log(user);
+            navigate('/browse')
+         })
+         .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            setErrorMessage(errorCode + "-" + errorMessage)
+         })
+            //Sign Up Logic
+       } else {
+            //Sign In Logic
+            signInWithEmailAndPassword(
+                auth,
+                email.current.value,
+                password.current.value
+            )
+        .then((userCredential) => {
+            // Signed in 
+            const user = userCredential.user;
+            console.log(user);
+            navigate('/browse')
+
+        })
+        .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+             setErrorMessage(errorCode + "-" + errorMessage)
+        });
+
+       }
     }
 
   return (
@@ -39,7 +105,7 @@ const Login = () => {
         {isSignInForm ? "Sign In" : "Sign Up"}</h1>
         {!isSignInForm && 
             <input 
-                   //ref={name}
+                   ref={name}
                    type='text' 
                    placeholder='Full Name' 
                    className='p-4 my-4 w-full  bg-gray-600'/> }
